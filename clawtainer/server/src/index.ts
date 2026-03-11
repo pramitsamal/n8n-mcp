@@ -18,17 +18,17 @@ getDb();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// Health check (before auth routes)
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/cases', caseRoutes);
 app.use('/api', documentRoutes);  // Has /cases/:id/documents and /documents/:id
 app.use('/api/cases', timelineRoutes);  // Has /:caseId/timeline
 app.use('/api/cases', aiRoutes);  // Has /:caseId/chat
-
-// Health check
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
 
 // Serve client in production
 const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
