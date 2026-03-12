@@ -6,6 +6,7 @@ import { v4 as uuid } from 'uuid';
 import * as repo from '../database/repository';
 import { verifyAuth, AuthRequest } from '../middleware/auth';
 import * as aiService from '../services/ai-service';
+import { extractText } from '../services/text-extractor';
 
 const UPLOADS_DIR = path.join(__dirname, '..', '..', 'data', 'uploads');
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -34,7 +35,7 @@ router.use(verifyAuth);
 const p = (v: string | string[]): string => Array.isArray(v) ? v[0] : v;
 
 // POST /api/cases/:caseId/documents
-router.post('/cases/:caseId/documents', upload.single('file'), (req: AuthRequest, res: Response) => {
+router.post('/cases/:caseId/documents', upload.single('file'), async (req: AuthRequest, res: Response) => {
   const caseId = p(req.params.caseId);
   const caseInfo = repo.getCaseById(caseId);
   if (!caseInfo || caseInfo.user_id !== req.userId) {
@@ -45,10 +46,20 @@ router.post('/cases/:caseId/documents', upload.single('file'), (req: AuthRequest
     res.status(400).json({ error: 'No file uploaded' });
     return;
   }
+
+  // Use client-provided OCR text (images), or extract server-side (PDF/DOCX/TXT)
+  let ocrText = req.body.ocr_text || null;
+  if (!ocrText) {
+    ocrText = await extractText(
+      path.join(UPLOADS_DIR, req.file.filename),
+      req.file.mimetype
+    );
+  }
+
   const doc = repo.createDocument(caseId, {
     filename: req.file.originalname,
     doc_type: (req.body.doc_type as string) || 'other',
-    ocr_text: req.body.ocr_text || null,
+    ocr_text: ocrText,
     file_path: req.file.filename,
     file_size: req.file.size,
     mime_type: req.file.mimetype
