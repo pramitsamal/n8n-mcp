@@ -105,6 +105,8 @@ export const uploadDocument = async (caseId: string, file: File, docType: string
 };
 export const analyzeDocument = (id: string) =>
   request<{ analysis: Record<string, unknown> }>(`/documents/${id}/analyze`, { method: 'POST' });
+export const extractDocumentText = (id: string) =>
+  request<{ success: boolean; ocr_text: string }>(`/documents/${id}/extract`, { method: 'POST' });
 export const updateDocument = (id: string, data: Partial<DocData>) =>
   request<DocData>(`/documents/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 

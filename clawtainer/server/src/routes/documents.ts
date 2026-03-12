@@ -125,6 +125,29 @@ router.post('/documents/:id/analyze', async (req: AuthRequest, res: Response) =>
   }
 });
 
+// POST /api/documents/:id/extract - Re-extract text from existing document
+router.post('/documents/:id/extract', async (req: AuthRequest, res: Response) => {
+  const docId = p(req.params.id);
+  const doc = repo.getDocumentById(docId);
+  if (!doc) { res.status(404).json({ error: 'Document not found' }); return; }
+  const caseInfo = repo.getCaseById(doc.case_id);
+  if (!caseInfo || caseInfo.user_id !== req.userId) { res.status(404).json({ error: 'Document not found' }); return; }
+  const filePath = path.join(UPLOADS_DIR, doc.file_path);
+  if (!fs.existsSync(filePath)) { res.status(404).json({ error: 'File not found on disk' }); return; }
+  try {
+    const ocrText = await extractText(filePath, doc.mime_type || '');
+    if (ocrText) {
+      repo.updateDocument(docId, { ocr_text: ocrText });
+      res.json({ success: true, ocr_text: ocrText });
+    } else {
+      res.status(422).json({ error: 'Could not extract text from this file type' });
+    }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Extraction failed';
+    res.status(500).json({ error: message });
+  }
+});
+
 // PUT /api/documents/:id
 router.put('/documents/:id', (req: AuthRequest, res: Response) => {
   const docId = p(req.params.id);

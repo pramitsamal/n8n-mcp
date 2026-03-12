@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getCase, getDocuments, getTimeline, uploadDocument, analyzeDocument, createTimelineEvent, CaseData, DocData, TimelineEventData, updateDocument } from '../api';
+import { getCase, getDocuments, getTimeline, uploadDocument, analyzeDocument, extractDocumentText, createTimelineEvent, CaseData, DocData, TimelineEventData, updateDocument } from '../api';
 
 const DOC_TYPES = [
   { value: 'petition', label: 'Petition' },
@@ -110,6 +110,7 @@ function OverviewTab({ caseData, onChat }: { caseData: CaseData; onChat: () => v
 function DocumentsTab({ caseId, docs, onRefresh }: { caseId: string; docs: DocData[]; onRefresh: () => void }) {
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [docType, setDocType] = useState('other');
   const [ocrProgress, setOcrProgress] = useState('');
@@ -147,6 +148,17 @@ function DocumentsTab({ caseId, docs, onRefresh }: { caseId: string; docs: DocDa
     }
     setUploading(false);
     setOcrProgress('');
+  };
+
+  const handleExtract = async (docId: string) => {
+    setExtracting(docId);
+    try {
+      await extractDocumentText(docId);
+      onRefresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Text extraction failed');
+    }
+    setExtracting(null);
   };
 
   const handleAnalyze = async (docId: string) => {
@@ -219,6 +231,16 @@ function DocumentsTab({ caseId, docs, onRefresh }: { caseId: string; docs: DocDa
                   </div>
                   {doc.ai_summary && <div className="doc-meta" style={{ color: 'var(--success)' }}>AI analyzed</div>}
                 </div>
+                {!doc.ocr_text && !doc.mime_type?.startsWith('image/') && (
+                  <button
+                    className="btn btn-outline"
+                    style={{ padding: '6px 12px', fontSize: 12, minHeight: 'auto' }}
+                    onClick={() => handleExtract(doc.id)}
+                    disabled={extracting === doc.id}
+                  >
+                    {extracting === doc.id ? <span className="spinner" style={{ width: 16, height: 16 }} /> : 'Extract Text'}
+                  </button>
+                )}
                 {!doc.ai_analysis && doc.ocr_text && (
                   <button
                     className="btn btn-outline"
