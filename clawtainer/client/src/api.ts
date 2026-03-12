@@ -34,7 +34,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new Error('Session expired');
   }
 
-  const data = await res.json();
+  const text = await res.text();
+  if (!text) throw new Error('Server returned an empty response');
+  let data: any;
+  try { data = JSON.parse(text); } catch { throw new Error('Server returned an invalid response'); }
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data as T;
 }

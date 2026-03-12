@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import { getDb, closeDb } from './database/db';
+import { initDb, closeDb } from './database/db';
 import authRoutes from './routes/auth';
 import caseRoutes from './routes/cases';
 import documentRoutes from './routes/documents';
@@ -10,9 +10,6 @@ import aiRoutes from './routes/ai';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3741', 10);
-
-// Initialize database
-getDb();
 
 // Middleware
 app.use(cors());
@@ -37,9 +34,19 @@ app.get('{*path}', (_req, res) => {
   res.sendFile(path.join(clientDist, 'index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Clawtainer server running on http://0.0.0.0:${PORT}`);
-  console.log(`AI configured: ${!!process.env.OPENAI_API_KEY}`);
+// Initialize database (async) then start server
+async function main() {
+  await initDb();
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Clawtainer server running on http://0.0.0.0:${PORT}`);
+    console.log(`AI configured: ${!!process.env.OPENAI_API_KEY}`);
+  });
+}
+
+main().catch(err => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
 });
 
 // Graceful shutdown
